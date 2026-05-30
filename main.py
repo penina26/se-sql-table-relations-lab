@@ -107,16 +107,6 @@ GROUP BY o.officeCode, o.city
 
 # STEP 10
 df_under_20 = pd.read_sql("""
-WITH low_customer_products AS (
-    SELECT p.productCode
-    FROM Products p
-    JOIN OrderDetails od
-        ON p.productCode = od.productCode
-    JOIN Orders o
-        ON od.orderNumber = o.orderNumber
-    GROUP BY p.productCode
-    HAVING COUNT(DISTINCT o.customerNumber) < 20
-)
 SELECT DISTINCT e.employeeNumber,
        e.firstName,
        e.lastName,
@@ -129,10 +119,16 @@ JOIN Orders o
     ON c.customerNumber = o.customerNumber
 JOIN OrderDetails od
     ON o.orderNumber = od.orderNumber
-JOIN low_customer_products lcp
-    ON od.productCode = lcp.productCode
 JOIN Offices ofc
     ON e.officeCode = ofc.officeCode
+WHERE od.productCode IN (
+    SELECT od.productCode
+    FROM OrderDetails od
+    JOIN Orders o
+        ON od.orderNumber = o.orderNumber
+    GROUP BY od.productCode
+    HAVING COUNT(DISTINCT o.customerNumber) < 20
+)
 ORDER BY e.employeeNumber
 """, conn)
 
