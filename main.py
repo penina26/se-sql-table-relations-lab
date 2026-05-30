@@ -1,118 +1,97 @@
-# STEP 0
-
-# SQL Library and Pandas Library
 import sqlite3
 import pandas as pd
 
-# Connect to the database
-conn = sqlite3.connect('data.sqlite')
+conn = sqlite3.connect("data.sqlite")
 
-pd.read_sql("""SELECT * FROM sqlite_master""", conn)
+df_boston = pd.read_sql("""
+SELECT firstName, lastName
+FROM Employees
+WHERE officeCode IN (
+    SELECT officeCode
+    FROM Offices
+    WHERE city = 'Boston'
+)
+""", conn)
 
-# STEP 1
-# Replace None with your code
-df_boston = """
-SELECT firstName, LastName, jobTitle
-FROM Employees"""
-
-# STEP 2
-# Replace None with your code
-df_zero_emp = """
+df_zero_emp = pd.read_sql("""
 SELECT o.officeCode, COUNT(e.employeeNumber) AS num_employees
-FROM Offices o LEFT JOIN Employees e ON o.officeCode = e.officeCode
+FROM Offices o
+LEFT JOIN Employees e ON o.officeCode = e.officeCode
 GROUP BY o.officeCode
-HAVING num_employees = 0"""
+HAVING COUNT(e.employeeNumber) = 0
+""", conn)
 
-# STEP 3
-# Replace None with your code
-df_employee = """
-SELECT e.firstName, e.lastName, o.city,o.state
-FROM Employees e JOIN Offices o ON e.officeCode = o.officeCode
-WHERE o.state IS NOT NULL OR o.city IS NOT NULL
-ORDER BY firstName, lastName"""
+df_employee = pd.read_sql("""
+SELECT e.firstName, e.lastName, o.city, o.state
+FROM Employees e
+JOIN Offices o ON e.officeCode = o.officeCode
+WHERE o.state IS NOT NULL AND o.city IS NOT NULL
+ORDER BY e.firstName, e.lastName
+""", conn)
 
-# STEP 4
-# Replace None with your code
-df_contacts = """
+df_contacts = pd.read_sql("""
 SELECT c.contactFirstName, c.contactLastName, c.phone, c.salesRepEmployeeNumber
 FROM Customers c
-LEFT JOIN orders o USING(customerNumber)
+LEFT JOIN Orders o USING(customerNumber)
 WHERE o.orderNumber IS NULL
 ORDER BY c.contactLastName
-"""
+""", conn)
 
-# Replace None with your code
-df_payment = """
-SELECT c.contactFirstName, c.contactLastName, paymentDate, CAST(amount AS FLOAT) AS amount
+df_payment = pd.read_sql("""
+SELECT c.contactFirstName, c.contactLastName, p.paymentDate, CAST(p.amount AS FLOAT) AS amount
 FROM Customers c
-JOIN payments p USING(customerNumber)
+JOIN Payments p USING(customerNumber)
 ORDER BY amount DESC
-"""
+""", conn)
 
-# STEP 6
-# Replace None with your code
-df_credit = """
-SELET e.employeeNumber, e.firstName,e.lastName, COUNT(DISTINCT c.customerNumber) AS num_customers
+df_credit = pd.read_sql("""
+SELECT e.employeeNumber, e.firstName, e.lastName,
+       COUNT(DISTINCT c.customerNumber) AS num_customers
 FROM Employees e
 JOIN Customers c ON e.employeeNumber = c.salesRepEmployeeNumber
 WHERE c.creditLimit > 90000
 GROUP BY e.employeeNumber, e.firstName, e.lastName
 ORDER BY num_customers DESC
-"""
+""", conn)
 
-# STEP 7
-# Replace None with your code
-df_product_sold = """
+df_product_sold = pd.read_sql("""
 SELECT p.productName,
        COUNT(od.orderNumber) AS numorders,
        SUM(od.quantityOrdered) AS totalunits
-FROM products p
-JOIN orderdetails od
-    ON p.productCode = od.productCode
+FROM Products p
+JOIN OrderDetails od ON p.productCode = od.productCode
 GROUP BY p.productCode, p.productName
 ORDER BY totalunits DESC
-"""
+""", conn)
 
-# STEP 8
-# Replace None with your code
-df_total_customers = """
+df_total_customers = pd.read_sql("""
 SELECT p.productName,
        p.productCode,
        COUNT(DISTINCT o.customerNumber) AS numpurchasers
-FROM products p
-JOIN orderdetails od
-    ON p.productCode = od.productCode
-JOIN orders o
-    ON od.orderNumber = o.orderNumber
+FROM Products p
+JOIN OrderDetails od ON p.productCode = od.productCode
+JOIN Orders o ON od.orderNumber = o.orderNumber
 GROUP BY p.productCode, p.productName
 ORDER BY numpurchasers DESC
-"""
+""", conn)
 
-# STEP 9
-# Replace None with your code
-
-df_customers = """
+df_customers = pd.read_sql("""
 SELECT o.officeCode,
        o.city,
        COUNT(c.customerNumber) AS n_customers
-FROM offices o
-JOIN employees e
-    ON o.officeCode = e.officeCode
-JOIN customers c
-    ON e.employeeNumber = c.salesRepEmployeeNumber
+FROM Offices o
+JOIN Employees e ON o.officeCode = e.officeCode
+JOIN Customers c ON e.employeeNumber = c.salesRepEmployeeNumber
 GROUP BY o.officeCode, o.city
-"""
+ORDER BY n_customers DESC
+""", conn)
 
-# STEP 10
-# Replace None with your code
-df_under_20 = """
+df_under_20 = pd.read_sql("""
 WITH low_customer_products AS (
     SELECT p.productCode
-    FROM products p
-    JOIN orderdetails od
-        ON p.productCode = od.productCode
-    JOIN orders o
-        ON od.orderNumber = o.orderNumber
+    FROM Products p
+    JOIN OrderDetails od ON p.productCode = od.productCode
+    JOIN Orders o ON od.orderNumber = o.orderNumber
     GROUP BY p.productCode
     HAVING COUNT(DISTINCT o.customerNumber) < 20
 )
@@ -121,18 +100,13 @@ SELECT DISTINCT e.employeeNumber,
        e.lastName,
        ofc.city,
        ofc.officeCode
-FROM employees e
-JOIN customers c
-    ON e.employeeNumber = c.salesRepEmployeeNumber
-JOIN orders o
-    ON c.customerNumber = o.customerNumber
-JOIN orderdetails od
-    ON o.orderNumber = od.orderNumber
-JOIN low_customer_products lcp
-    ON od.productCode = lcp.productCode
-JOIN offices ofc
-    ON e.officeCode = ofc.officeCode
+FROM Employees e
+JOIN Customers c ON e.employeeNumber = c.salesRepEmployeeNumber
+JOIN Orders o ON c.customerNumber = o.customerNumber
+JOIN OrderDetails od ON o.orderNumber = od.orderNumber
+JOIN low_customer_products lcp ON od.productCode = lcp.productCode
+JOIN Offices ofc ON e.officeCode = ofc.officeCode
 ORDER BY e.employeeNumber
-"""
+""", conn)
 
 conn.close()
